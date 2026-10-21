@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 banner shown in the Google TV app row. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path
+        android:fillColor="#0D1117"
+        android:pathData="M0,0h320v180h-320z" />
+    <!-- 2x2 camera grid -->
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M48,42h54v40h-54z" />
+    <path
+        android:fillColor="#263238"
+        android:pathData="M108,42h54v40h-54z M48,88h54v40h-54z M108,88h54v40h-54z" />
+    <!-- camera body and lens -->
+    <path
+        android:fillColor="#ECEFF1"
+        android:pathData="M188,70h72a6,6 0,0 1,6 6v28a6,6 0,0 1,-6 6h-72a6,6 0,0 1,-6 -6v-28a6,6 0,0 1,6 -6z" />
+    <path
+        android:fillColor="#ECEFF1"
+        android:pathData="M266,82l22,-12v40l-22,-12z" />
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M200,82m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+    <!-- base line -->
+    <path
+        android:fillColor="#546E7A"
+        android:pathData="M48,140h240v4h-240z" />
+</vector>
