@@ -38,7 +38,7 @@ object NvrClient {
         for (path in paths) {
             try {
                 val cameras = parseChannels(get(config, path))
-                if (cameras.isNotEmpty()) return cameras
+                if (cameras.isNotEmpty()) return withoutOfflineChannels(config, cameras)
             } catch (e: AuthException) {
                 throw e // wrong password: don't keep trying (NVR may lock the account)
             } catch (e: Exception) {
@@ -51,6 +51,54 @@ object NvrClient {
         )
     }
 
+    /**
+     * Drops channels the NVR reports as offline (empty slots like "IPCamera 07").
+     * If the status can't be read, keeps every channel.
+     */
+    private fun withoutOfflineChannels(config: NvrConfig, cameras: List<Camera>): List<Camera> {
+        val online = runCatching {
+            parseOnlineStatus(get(config, "/ISAPI/ContentMgmt/InputProxy/channels/status"))
+        }.getOrNull() ?: return cameras
+        if (online.isEmpty()) return cameras
+        val filtered = cameras.filter { online[it.channel] != false }
+        return filtered.ifEmpty { cameras }
+    }
+
+    /** Reads <InputProxyChannelStatus><id>N</id>…<online>true|false</online> → map of id to online. */
+    internal fun parseOnlineStatus(xml: String): Map<Int, Boolean> {
+        val parser = Xml.newPullParser()
+        parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+        parser.setInput(StringReader(xml))
+
+        val result = mutableMapOf<Int, Boolean>()
+        var depth = -1
+        var id: Int? = null
+        var online: Boolean? = null
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_TAG -> {
+                    if (depth < 0 && parser.name == "InputProxyChannelStatus") {
+                        depth = parser.depth; id = null; online = null
+                    } else if (depth >= 0 && parser.depth == depth + 1) {
+                        when (parser.name) {
+                            "id" -> id = parser.nextText().trim().toIntOrNull()
+                            "online" -> online = parser.nextText().trim().equals("true", ignoreCase = true)
+                        }
+                    }
+                }
+                XmlPullParser.END_TAG -> if (depth >= 0 && parser.depth == depth) {
+                    val i = id
+                    val o = online
+                    if (i != null && o != null) result[i] = o
+                    depth = -1
+                }
+            }
+            event = parser.next()
+        }
+        return result
+    }
+
     class AuthException(message: String) : IOException(message)
 
     private fun get(config: NvrConfig, path: String): String =
@@ -60,7 +108,25 @@ object NvrClient {
     fun snapshot(config: NvrConfig, streamId: Int): ByteArray =
         getBytes(config, "/ISAPI/Streaming/channels/$streamId/picture")
 
+    /**
+     * After the NVR refuses our login once, every later request waits until this
+     * time instead of trying again: Hikvision locks the account after a few failures.
+     */
+    @Volatile private var authBlockedUntil = 0L
+    private const val AUTH_BLOCK_MS = 10 * 60_000L
+
+    /** Called when the user saves or tests new login details. */
+    fun clearAuthBlock() {
+        authBlockedUntil = 0L
+    }
+
     fun getBytes(config: NvrConfig, path: String): ByteArray {
+        if (System.currentTimeMillis() < authBlockedUntil) {
+            throw AuthException(
+                "The NVR refused the login. Paused for 10 minutes to avoid locking the " +
+                    "account – check the password in Settings."
+            )
+        }
         val url = URL("http://${config.host}:${config.httpPort}$path")
 
         var conn = open(url)
@@ -86,6 +152,7 @@ object NvrClient {
             code = conn.responseCode
             if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
                 conn.disconnect()
+                authBlockedUntil = System.currentTimeMillis() + AUTH_BLOCK_MS
                 throw AuthException(
                     "Wrong username or password. Note: Hikvision locks the account " +
                         "for ~30 minutes after several failed attempts."

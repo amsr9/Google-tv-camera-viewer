@@ -62,13 +62,15 @@ home network and shows every camera.
 The settings screen opens. Enter the NVR IP, username and password, press
 **Test connection** — you should see your list of cameras — then **Save**.
 
-| Remote button | Grid | Full screen |
-|---|---|---|
-| Arrows | Move between cameras | ◀ ▶ previous / next camera |
-| OK | Open camera full screen | Show camera name |
-| ◀ ▶ at grid edge, Channel ±  | Previous / next page | Previous / next camera |
-| Back | Exit app | Back to grid |
-| ▲ from top row | Reach Refresh / Settings | — |
+| Remote button | Camera grid | Full screen | Settings |
+|---|---|---|---|
+| Arrows | Move between cameras | ◀ ▶ previous / next camera | ▲ ▼ move between items |
+| OK | Open camera full screen | Back to all cameras | Type in a field / next choice |
+| ◀ ▶ on a choice | — | — | Change the option |
+| ◀ ▶ at the grid edge, Channel ± | Previous / next page | Previous / next camera | — |
+| ▲ from the top row | Reach **Refresh** / **Settings** | — | — |
+| Menu / Settings key | Open Settings | — | — |
+| Back | From the top bar: back to cameras. Otherwise press twice to close | Back to all cameras | Cancel (asks first if you changed something) |
 
 ## Troubleshooting
 

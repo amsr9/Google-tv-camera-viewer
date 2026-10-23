@@ -3,29 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/tile_background"
+    android:background="#000000"
     android:clickable="true"
     android:descendantFocusability="blocksDescendants"
     android:focusable="true"
-    android:padding="3dp">
+    android:foreground="@drawable/tile_focus">
 
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:focusable="false"
-        app:resize_mode="fit"
-        app:shutter_background_color="#0D1117"
+        app:resize_mode="zoom"
+        app:shutter_background_color="#000000"
         app:use_controller="false" />
 
     <ImageView
         android:id="@+id/snapshot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#0D1117"
+        android:background="#000000"
         android:contentDescription="@null"
         android:focusable="false"
-        android:scaleType="fitCenter"
+        android:scaleType="centerCrop"
         android:visibility="gone" />
 
     <TextView

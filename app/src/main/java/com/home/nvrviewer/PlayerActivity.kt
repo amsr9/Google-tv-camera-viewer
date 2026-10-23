@@ -30,6 +30,7 @@ class PlayerActivity : Activity() {
 
     private var index = 0
     private var liveReported = false
+    private var okPressed = false
     private val handler = Handler(Looper.getMainLooper())
     private val hideLabel = Runnable { label.animate().alpha(0f).setDuration(400).start() }
 
@@ -55,17 +56,16 @@ class PlayerActivity : Activity() {
                 StreamPlayer.Status.PLAYING -> {
                     statusText.visibility = View.GONE
                     liveReported = true
-                    if (VideoMode.mode == VideoMode.Mode.UNKNOWN) VideoMode.mode = VideoMode.Mode.LIVE
+                    VideoMode.fullScreenFailed.remove(channels[index])
                 }
+                StreamPlayer.Status.UNREACHABLE ->
+                    showStatus("Can't reach camera · retrying\n${reason ?: ""}".trim())
                 StreamPlayer.Status.RETRYING, StreamPlayer.Status.AUTH_FAILED -> {
                     val auth = s == StreamPlayer.Status.AUTH_FAILED
                     // Full-quality video never started here (e.g. the TV can't decode 4K),
                     // or the login was refused: show full-size snapshots instead.
                     if (auth || !liveReported) {
-                        if (VideoMode.mode == VideoMode.Mode.UNKNOWN) {
-                            VideoMode.mode = VideoMode.Mode.SNAPSHOT
-                            VideoMode.reason = reason
-                        }
+                        VideoMode.fullScreenFailed.add(channels[index])
                         startSnapshots(channels[index])
                     } else {
                         showStatus("Camera offline · retrying\n${reason ?: ""}".trim())
@@ -102,8 +102,8 @@ class PlayerActivity : Activity() {
         stopAll()
         liveReported = false
         val ch = channels[index]
-        if (VideoMode.mode == VideoMode.Mode.SNAPSHOT) {
-            startSnapshots(ch)
+        if (ch in VideoMode.fullScreenFailed) {
+            startSnapshots(ch) // full-quality live video already failed once: skip straight to pictures
         } else {
             image.visibility = View.GONE
             playerView.visibility = View.VISIBLE
@@ -111,7 +111,11 @@ class PlayerActivity : Activity() {
         }
 
         val name = names.getOrNull(index) ?: "Camera $ch"
-        label.text = if (channels.size > 1) "$name   (${index + 1} / ${channels.size})   ◀ ▶" else name
+        label.text = buildString {
+            append(name)
+            if (channels.size > 1) append("   (${index + 1} of ${channels.size})   ◀ ▶ other cameras")
+            append("   ·   OK or Back: all cameras")
+        }
         label.alpha = 1f
         handler.removeCallbacks(hideLabel)
         handler.postDelayed(hideLabel, 3_000)
@@ -144,8 +148,12 @@ class PlayerActivity : Activity() {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                 show(index - 1); return true
             }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_CENTER,
-            KeyEvent.KEYCODE_ENTER -> {
+            // OK again goes back to the grid (on release, see onKeyUp).
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                okPressed = event.repeatCount == 0
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 // Show the camera name again.
                 label.alpha = 1f
                 handler.removeCallbacks(hideLabel)
@@ -154,6 +162,21 @@ class PlayerActivity : Activity() {
             }
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    /**
+     * Acts on release, and only for a press that started on this screen, so the
+     * OK press that opened full screen (or a long press) can't close it again.
+     */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                if (okPressed) finish()
+                okPressed = false
+                return true
+            }
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     companion object {

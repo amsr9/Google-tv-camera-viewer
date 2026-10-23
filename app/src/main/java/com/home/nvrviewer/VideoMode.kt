@@ -11,8 +11,15 @@ object VideoMode {
     @Volatile var mode: Mode = Mode.UNKNOWN
     @Volatile var reason: String? = null
 
+    /**
+     * Cameras whose full-quality (4K main) stream couldn't be played. Full screen
+     * shows snapshots for them straight away instead of trying again each time.
+     */
+    val fullScreenFailed: MutableSet<Int> = java.util.Collections.synchronizedSet(mutableSetOf())
+
     fun reset() {
         mode = Mode.UNKNOWN
         reason = null
+        fullScreenFailed.clear()
     }
 }

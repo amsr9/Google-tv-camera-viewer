@@ -37,6 +37,7 @@ class MainActivity : Activity(), CameraTile.Listener {
     private var loadToken = 0
     private var focusIndex: Int? = null
     private var askedForSettings = false
+    private var backPressedAt = 0L
 
     private val perPage: Int get() = config.gridSize * config.gridSize
     private val pageCount: Int get() = maxOf(1, (cameras.size + perPage - 1) / perPage)
@@ -56,9 +57,7 @@ class MainActivity : Activity(), CameraTile.Listener {
         statusText = findViewById(R.id.status)
         pageLabel = findViewById(R.id.page_label)
 
-        findViewById<Button>(R.id.btn_settings).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
+        findViewById<Button>(R.id.btn_settings).setOnClickListener { openSettings() }
         findViewById<Button>(R.id.btn_refresh).setOnClickListener {
             VideoMode.reset() // try live video again
             loadCameras(forceReload = true)
@@ -134,6 +133,8 @@ class MainActivity : Activity(), CameraTile.Listener {
         } else {
             releaseTiles()
             grid.removeAllViews()
+            // Forget the old list too, so the answer is always shown, even if unchanged.
+            cameras = emptyList()
             showStatus("Connecting to ${cfg.host}…")
         }
 
@@ -177,7 +178,9 @@ class MainActivity : Activity(), CameraTile.Listener {
         val start = page * perPage
         val pageCams = cameras.subList(start, min(start + perPage, cameras.size))
 
-        for (r in 0 until n) {
+        // Only as many rows as this page needs, so the cameras fill the screen.
+        val rows = if (pageCount == 1) (pageCams.size + n - 1) / n else n
+        for (r in 0 until rows) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             grid.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
             for (c in 0 until n) {
@@ -223,6 +226,11 @@ class MainActivity : Activity(), CameraTile.Listener {
             VideoMode.Mode.UNKNOWN -> if (ok) {
                 VideoMode.mode = VideoMode.Mode.LIVE
                 tiles.filter { it !== tile }.forEach { it.startLive() }
+            } else if (!authFailed && tiles.indexOf(tile) < tiles.size - 1) {
+                // This camera's stream may just be unsupported: show its snapshots
+                // and try live video on the next camera.
+                tile.startSnapshots()
+                tiles[tiles.indexOf(tile) + 1].startLive()
             } else {
                 VideoMode.mode = VideoMode.Mode.SNAPSHOT
                 VideoMode.reason = reason
@@ -233,9 +241,9 @@ class MainActivity : Activity(), CameraTile.Listener {
                     Toast.LENGTH_LONG,
                 ).show()
             }
-            // Live works for other cameras: a refused login on this one -> snapshots.
-            // Other errors (camera offline, network blip) keep retrying live.
-            VideoMode.Mode.LIVE -> if (!ok && authFailed) tile.startSnapshots()
+            // Live works for other cameras but this one couldn't start (e.g. its
+            // stream format isn't supported): show snapshots for just this camera.
+            VideoMode.Mode.LIVE -> if (!ok) tile.startSnapshots()
             VideoMode.Mode.SNAPSHOT -> Unit
         }
         updateLabel()
@@ -244,7 +252,8 @@ class MainActivity : Activity(), CameraTile.Listener {
     private fun updateLabel() {
         pageLabel.text = buildString {
             append("${cameras.size} cameras")
-            if (pageCount > 1) append("   ·   Page ${page + 1} of $pageCount   ·   ◀ ▶ to change page")
+            if (pageCount > 1) append("   ·   Page ${page + 1} of $pageCount (◀ ▶ at the edge)")
+            append("   ·   OK: full screen   ·   ▲: Refresh / Settings")
             if (VideoMode.mode == VideoMode.Mode.SNAPSHOT) {
                 append("   ·   Snapshot mode")
                 VideoMode.reason?.let { append(" – live video: $it") }
@@ -261,6 +270,31 @@ class MainActivity : Activity(), CameraTile.Listener {
         statusText.text = text
         statusText.visibility = View.VISIBLE
         pageLabel.text = getString(R.string.app_name)
+    }
+
+    private fun openSettings() {
+        startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
+    /**
+     * Back from the top bar returns to the cameras; otherwise press Back twice
+     * to close, so one accidental press doesn't shut the camera wall.
+     */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        val focused = currentFocus
+        if (tiles.isNotEmpty() && focused != null && !isTile(focused)) {
+            tiles.first().view.requestFocus()
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (tiles.isNotEmpty() && now - backPressedAt > 2_500) {
+            backPressedAt = now
+            Toast.makeText(this, "Press Back again to close Home Cameras", Toast.LENGTH_SHORT).show()
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
     }
 
     private fun openFullscreen(index: Int) {
@@ -293,6 +327,7 @@ class MainActivity : Activity(), CameraTile.Listener {
             scheduleCycle() // any key press postpones auto-cycling
             val focused = currentFocus
             when (event.keyCode) {
+                KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS -> { openSettings(); return true }
                 KeyEvent.KEYCODE_DPAD_RIGHT ->
                     if (isTile(focused) && !isTile(focused?.focusSearch(View.FOCUS_RIGHT)) && pageCount > 1) {
                         changePage(+1); return true

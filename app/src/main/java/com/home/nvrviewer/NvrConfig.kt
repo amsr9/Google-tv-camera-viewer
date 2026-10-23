@@ -18,6 +18,8 @@ data class NvrConfig(
     val gridSize: Int,
     /** Seconds between automatic page changes, 0 = off. */
     val cycleSeconds: Int,
+    /** How a picture fills its tile: 0 = fill (trim edges), 1 = stretch, 2 = fit (black bars). */
+    val fitMode: Int = FIT_FILL,
 ) {
     val isComplete: Boolean get() = host.isNotBlank() && username.isNotBlank()
 
@@ -55,6 +57,7 @@ data class NvrConfig(
             .putInt(K_MANUAL, manualChannels)
             .putInt(K_GRID, gridSize)
             .putInt(K_CYCLE, cycleSeconds)
+            .putInt(K_FIT, fitMode)
             .apply()
     }
 
@@ -69,6 +72,11 @@ data class NvrConfig(
         private const val K_GRID = "grid"
         private const val K_CYCLE = "cycle"
         private const val K_CACHE = "camera_cache"
+        private const val K_FIT = "fit"
+
+        const val FIT_FILL = 0
+        const val FIT_STRETCH = 1
+        const val FIT_BARS = 2
 
         private fun prefs(context: Context) =
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -84,6 +92,7 @@ data class NvrConfig(
                 manualChannels = p.getInt(K_MANUAL, 0),
                 gridSize = p.getInt(K_GRID, 2),
                 cycleSeconds = p.getInt(K_CYCLE, 0),
+                fitMode = p.getInt(K_FIT, FIT_FILL),
             )
         }
 

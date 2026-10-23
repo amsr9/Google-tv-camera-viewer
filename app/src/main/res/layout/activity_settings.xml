@@ -2,37 +2,48 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1117">
+    android:background="#0D1117"
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:paddingHorizontal="48dp"
-        android:paddingVertical="32dp">
+        android:paddingVertical="28dp">
 
-        <!-- Left column: form -->
+        <!-- Left column: everything you can select -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="1.2"
             android:orientation="vertical">
 
             <TextView
                 style="@style/SettingsTitle"
-                android:text="NVR settings" />
+                android:text="Settings" />
+
+            <TextView
+                style="@style/SettingsLabel"
+                android:text="▲ ▼ move   ·   OK type / choose   ·   ◀ ▶ change an option   ·   Back cancel" />
+
+            <!-- 1. Connection -->
+            <TextView
+                style="@style/SettingsSection"
+                android:text="1.  NVR connection" />
 
             <TextView style="@style/SettingsLabel" android:text="NVR IP address" />
             <EditText
                 android:id="@+id/f_host"
                 style="@style/SettingsField"
-                android:hint="192.168.1.64"
+                android:hint="192.168.100.30"
                 android:inputType="textUri" />
 
-            <TextView style="@style/SettingsLabel" android:text="Username (a viewer-only account is best)" />
+            <TextView style="@style/SettingsLabel" android:text="Username" />
             <EditText
                 android:id="@+id/f_user"
                 style="@style/SettingsField"
+                android:hint="admin"
                 android:inputType="text" />
 
             <TextView style="@style/SettingsLabel" android:text="Password" />
@@ -53,7 +64,7 @@
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <TextView style="@style/SettingsLabel" android:text="HTTP port" />
+                    <TextView style="@style/SettingsLabel" android:text="HTTP port (usually 80)" />
                     <EditText
                         android:id="@+id/f_http_port"
                         style="@style/SettingsField"
@@ -66,63 +77,71 @@
                     android:layout_weight="1"
                     android:orientation="vertical">
 
-                    <TextView style="@style/SettingsLabel" android:text="RTSP port" />
+                    <TextView style="@style/SettingsLabel" android:text="Video (RTSP) port (usually 554)" />
                     <EditText
                         android:id="@+id/f_rtsp_port"
                         style="@style/SettingsField"
+                        android:imeOptions="actionDone"
                         android:inputType="number" />
                 </LinearLayout>
             </LinearLayout>
 
-            <TextView style="@style/SettingsLabel" android:text="Cameras per row (1–4; 2 = 4 per screen, 3 = 9)" />
-            <EditText
-                android:id="@+id/f_grid"
-                style="@style/SettingsField"
-                android:inputType="number" />
+            <Button
+                android:id="@+id/btn_test"
+                style="@style/SettingsButton"
+                android:layout_marginTop="14dp"
+                android:text="Test connection" />
 
-            <TextView style="@style/SettingsLabel" android:text="Auto-switch page every N seconds (0 = off)" />
-            <EditText
-                android:id="@+id/f_cycle"
-                style="@style/SettingsField"
-                android:inputType="number" />
+            <!-- 2. Display -->
+            <TextView
+                style="@style/SettingsSection"
+                android:text="2.  Display" />
 
-            <TextView style="@style/SettingsLabel" android:text="Number of cameras (0 = detect automatically)" />
-            <EditText
-                android:id="@+id/f_manual"
-                style="@style/SettingsField"
-                android:inputType="number" />
+            <Button
+                android:id="@+id/o_grid"
+                style="@style/SettingsOption" />
 
+            <Button
+                android:id="@+id/o_fit"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_cycle"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_manual"
+                style="@style/SettingsOption" />
+
+            <!-- 3. Save -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="24dp"
                 android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/btn_test"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:text="Test connection" />
+                    android:id="@+id/btn_save"
+                    style="@style/SettingsButton"
+                    android:text="Save" />
 
                 <Button
-                    android:id="@+id/btn_save"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Save" />
+                    android:id="@+id/btn_cancel"
+                    style="@style/SettingsButton"
+                    android:text="Cancel" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Right column: test results -->
+        <!-- Right column: test results and help (not selectable) -->
         <TextView
             android:id="@+id/result"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="40dp"
-            android:layout_marginTop="56dp"
+            android:layout_marginTop="120dp"
             android:layout_weight="1"
             android:lineSpacingExtra="4dp"
-            android:text="Enter your NVR details, then press Test connection."
+            android:text="Enter your NVR details, then select Test connection."
             android:textColor="#B0BEC5"
             android:textSize="16sp" />
     </LinearLayout>
