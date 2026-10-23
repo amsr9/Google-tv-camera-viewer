@@ -113,6 +113,11 @@
                 android:id="@+id/o_manual"
                 style="@style/SettingsOption" />
 
+            <Button
+                android:id="@+id/btn_reset_order"
+                style="@style/SettingsOption"
+                android:text="Reset camera order  (tip: hold OK on a camera to move it)" />
+
             <!-- 3. Save -->
             <LinearLayout
                 android:layout_width="match_parent"

@@ -145,6 +145,21 @@ class CameraTile(
 
     fun release() = stopAll()
 
+    private var labelBeforeMove: CharSequence? = null
+
+    /** Orange frame and a "moving" label while you rearrange this camera. */
+    fun setMoving(moving: Boolean) {
+        if (moving) {
+            labelBeforeMove = label.text
+            label.text = "◀ ▲ ▼ ▶  Moving ${camera.name}"
+            view.foreground = context.getDrawable(R.drawable.tile_moving)
+        } else {
+            labelBeforeMove?.let { label.text = it }
+            labelBeforeMove = null
+            view.foreground = context.getDrawable(R.drawable.tile_focus)
+        }
+    }
+
     companion object {
         const val TAG = "camera_tile"
         private const val PROBE_TIMEOUT_MS = 15_000L

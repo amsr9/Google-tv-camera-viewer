@@ -70,6 +70,10 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.btn_test).setOnClickListener { test() }
         findViewById<Button>(R.id.btn_save).setOnClickListener { save() }
         findViewById<Button>(R.id.btn_cancel).setOnClickListener { finish() }
+        findViewById<Button>(R.id.btn_reset_order).setOnClickListener {
+            NvrConfig.clearCameraOrder(this)
+            Toast.makeText(this, "Cameras will be shown in the NVR's order", Toast.LENGTH_SHORT).show()
+        }
 
         // First run: start at the IP address. Afterwards the login rarely changes, so
         // start at the display options (▲ still reaches the login fields).

@@ -13,8 +13,13 @@ android {
         applicationId = "com.home.nvrviewer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 8
+        versionName = "1.7"
+
+        // VLC ships native code: only include what TVs use (keeps the app smaller).
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -41,4 +46,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3")
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.annotation:annotation:1.9.1")
+    // Full-screen player for the 4K H.265 main stream
+    implementation("org.videolan.android:libvlc-all:3.6.5")
 }

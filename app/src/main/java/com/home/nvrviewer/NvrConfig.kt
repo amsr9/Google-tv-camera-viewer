@@ -112,6 +112,28 @@ data class NvrConfig(
             }
         }
 
+        private const val K_ORDER = "camera_order"
+
+        /** The order you arranged the cameras in (list of channel numbers). */
+        fun saveCameraOrder(context: Context, cameras: List<Camera>) {
+            prefs(context).edit().putString(K_ORDER, cameras.joinToString(",") { it.channel.toString() }).apply()
+        }
+
+        fun clearCameraOrder(context: Context) {
+            prefs(context).edit().remove(K_ORDER).apply()
+        }
+
+        /**
+         * Puts cameras in your saved order. Cameras not in the saved order (e.g. newly
+         * added to the NVR) go at the end, in the NVR's order.
+         */
+        fun applyCameraOrder(context: Context, cameras: List<Camera>): List<Camera> {
+            val saved = prefs(context).getString(K_ORDER, null)
+                ?.split(',')?.mapNotNull { it.trim().toIntOrNull() } ?: return cameras
+            val rank = saved.withIndex().associate { (i, ch) -> ch to i }
+            return cameras.sortedBy { rank[it.channel] ?: (saved.size + cameras.indexOf(it)) }
+        }
+
         fun clearCameraCache(context: Context) {
             prefs(context).edit().remove(K_CACHE).apply()
         }

@@ -10,7 +10,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.media3.ui.PlayerView
+import org.videolan.libvlc.util.VLCVideoLayout
 
 /**
  * One camera full screen in full quality (or full-size snapshots if live video
@@ -23,9 +23,9 @@ class PlayerActivity : Activity() {
     private lateinit var names: Array<String>
     private lateinit var label: TextView
     private lateinit var statusText: TextView
-    private lateinit var playerView: PlayerView
+    private lateinit var playerView: VLCVideoLayout
     private lateinit var image: ImageView
-    private lateinit var stream: StreamPlayer
+    private lateinit var stream: VlcStreamPlayer
     private var snapshots: SnapshotFeed? = null
 
     private var index = 0
@@ -50,7 +50,7 @@ class PlayerActivity : Activity() {
         statusText = findViewById(R.id.status)
         playerView = findViewById(R.id.player_view)
         image = findViewById(R.id.snapshot)
-        stream = StreamPlayer(this, playerView) { s, reason ->
+        stream = VlcStreamPlayer(this, playerView) { s, reason ->
             when (s) {
                 StreamPlayer.Status.CONNECTING -> showStatus("Connecting…")
                 StreamPlayer.Status.PLAYING -> {
@@ -84,6 +84,11 @@ class PlayerActivity : Activity() {
         super.onStop()
         handler.removeCallbacksAndMessages(null)
         if (::stream.isInitialized) stopAll()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::stream.isInitialized) stream.destroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

@@ -16,6 +16,7 @@
         android:focusable="false"
         app:resize_mode="zoom"
         app:shutter_background_color="#000000"
+        app:surface_type="texture_view"
         app:use_controller="false" />
 
     <ImageView

@@ -5,7 +5,8 @@ home network and shows every camera.
 
 - **Finds your cameras automatically** (names included) through the NVR's ISAPI interface
 - **Grid view**: 1, 4, 9 or 16 cameras per screen, using the light sub-stream
-- **Full screen**: press OK on a camera to view it in full quality; ◀ ▶ switches camera
+- **Full screen**: press OK on a camera to view it live in full 4K quality (VLC player); ◀ ▶ switches camera
+- **Arrange cameras**: hold OK on a camera, move it with the arrows, OK to place it (order is saved)
 - **Pages**: press ◀ ▶ past the edge of the grid (or Channel Up/Down) to see more cameras
 - **Auto-cycle** through pages every N seconds (optional)
 - **Reconnects by itself** when a camera or the network drops
@@ -66,6 +67,7 @@ The settings screen opens. Enter the NVR IP, username and password, press
 |---|---|---|---|
 | Arrows | Move between cameras | ◀ ▶ previous / next camera | ▲ ▼ move between items |
 | OK | Open camera full screen | Back to all cameras | Type in a field / next choice |
+| Hold OK (1 s) | Pick up the camera to move it: arrows move it, OK places it, Back cancels | — | — |
 | ◀ ▶ on a choice | — | — | Change the option |
 | ◀ ▶ at the grid edge, Channel ± | Previous / next page | Previous / next camera | — |
 | ▲ from the top row | Reach **Refresh** / **Settings** | — | — |
