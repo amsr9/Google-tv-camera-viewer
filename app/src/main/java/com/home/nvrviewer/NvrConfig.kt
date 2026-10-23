@@ -1,7 +1,6 @@
 package com.home.nvrviewer
 
 import android.content.Context
-import android.net.Uri
 
 /** One camera channel on the NVR. */
 data class Camera(val channel: Int, val name: String)
@@ -27,9 +26,23 @@ data class NvrConfig(
      * stream: 1 = main (full quality), 2 = sub (low resolution, for the grid).
      */
     fun rtspUrl(channel: Int, stream: Int): String {
-        val user = Uri.encode(username)
-        val pass = Uri.encode(password)
+        val user = encodeUserInfo(username)
+        val pass = encodeUserInfo(password)
         return "rtsp://$user:$pass@$host:$rtspPort/Streaming/Channels/${channel * 100 + stream}"
+    }
+
+    /**
+     * Percent-encodes only what must be encoded in the user:password part of a URL.
+     * Characters such as $ ! & * + are allowed as-is (RFC 3986) and are left alone,
+     * so the player sends exactly the password the NVR expects.
+     */
+    private fun encodeUserInfo(s: String): String = buildString {
+        for (b in s.toByteArray(Charsets.UTF_8)) {
+            val c = b.toInt() and 0xff
+            val ch = c.toChar()
+            val safe = c < 0x80 && (ch in 'A'..'Z' || ch in 'a'..'z' || ch in '0'..'9' || ch in "-._~!$&'()*+,;=")
+            if (safe) append(ch) else append('%').append("%02X".format(c))
+        }
     }
 
     fun save(context: Context) {

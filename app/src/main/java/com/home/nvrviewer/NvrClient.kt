@@ -53,7 +53,14 @@ object NvrClient {
 
     class AuthException(message: String) : IOException(message)
 
-    private fun get(config: NvrConfig, path: String): String {
+    private fun get(config: NvrConfig, path: String): String =
+        String(getBytes(config, path), Charsets.UTF_8)
+
+    /** Fetches one JPEG snapshot of a stream (e.g. 102 = camera 1 sub-stream). */
+    fun snapshot(config: NvrConfig, streamId: Int): ByteArray =
+        getBytes(config, "/ISAPI/Streaming/channels/$streamId/picture")
+
+    fun getBytes(config: NvrConfig, path: String): ByteArray {
         val url = URL("http://${config.host}:${config.httpPort}$path")
 
         var conn = open(url)
@@ -87,7 +94,7 @@ object NvrClient {
         }
         try {
             if (code != HttpURLConnection.HTTP_OK) throw IOException("HTTP $code for $path")
-            return conn.inputStream.bufferedReader().use { it.readText() }
+            return conn.inputStream.use { it.readBytes() }
         } finally {
             conn.disconnect()
         }

@@ -22,9 +22,10 @@ import androidx.media3.ui.PlayerView
 class StreamPlayer(
     private val context: Context,
     private val playerView: PlayerView,
-    private val onStatus: (Status) -> Unit,
+    /** reason is a short description of the error for RETRYING / AUTH_FAILED. */
+    private val onStatus: (status: Status, reason: String?) -> Unit,
 ) {
-    enum class Status { CONNECTING, PLAYING, RETRYING }
+    enum class Status { CONNECTING, PLAYING, RETRYING, AUTH_FAILED }
 
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
@@ -32,7 +33,7 @@ class StreamPlayer(
 
     private val retry = Runnable {
         player?.let {
-            onStatus(Status.CONNECTING)
+            onStatus(Status.CONNECTING, null)
             it.stop()
             it.prepare()
         }
@@ -43,21 +44,31 @@ class StreamPlayer(
             when (state) {
                 Player.STATE_READY -> {
                     retryDelayMs = INITIAL_RETRY_MS
-                    onStatus(Status.PLAYING)
+                    onStatus(Status.PLAYING, null)
                 }
-                Player.STATE_ENDED -> scheduleRetry() // live stream should never "end"
+                Player.STATE_ENDED -> { // a live stream should never "end"
+                    onStatus(Status.RETRYING, "stream ended")
+                    scheduleRetry(retryDelayMs)
+                }
                 else -> Unit
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            scheduleRetry()
+            val reason = describe(error)
+            if (isAuthError(error)) {
+                onStatus(Status.AUTH_FAILED, reason)
+                scheduleRetry(AUTH_RETRY_MS) // slow: each attempt counts as a failed login
+            } else {
+                onStatus(Status.RETRYING, reason)
+                scheduleRetry(retryDelayMs)
+            }
         }
     }
 
     fun play(url: String) {
         release()
-        onStatus(Status.CONNECTING)
+        onStatus(Status.CONNECTING, null)
 
         // Small buffers keep the picture close to real time.
         val loadControl = DefaultLoadControl.Builder()
@@ -75,7 +86,7 @@ class StreamPlayer(
         p.addListener(listener)
 
         val source = RtspMediaSource.Factory()
-            .setForceUseRtpTcp(true) // more reliable than UDP over Wi-Fi
+            .setForceUseRtpTcp(true) // more reliable than UDP, and avoids a known Hikvision bug
             .setTimeoutMs(10_000)
             .createMediaSource(MediaItem.fromUri(url))
         p.setMediaSource(source)
@@ -86,11 +97,10 @@ class StreamPlayer(
         player = p
     }
 
-    private fun scheduleRetry() {
-        onStatus(Status.RETRYING)
+    private fun scheduleRetry(delayMs: Long) {
         handler.removeCallbacks(retry)
-        handler.postDelayed(retry, retryDelayMs)
-        retryDelayMs = (retryDelayMs * 2).coerceAtMost(MAX_RETRY_MS)
+        handler.postDelayed(retry, delayMs)
+        if (delayMs == retryDelayMs) retryDelayMs = (retryDelayMs * 2).coerceAtMost(MAX_RETRY_MS)
     }
 
     fun release() {
@@ -104,5 +114,19 @@ class StreamPlayer(
     private companion object {
         const val INITIAL_RETRY_MS = 3_000L
         const val MAX_RETRY_MS = 30_000L
+        const val AUTH_RETRY_MS = 120_000L
+
+        fun causes(e: Throwable): Sequence<Throwable> =
+            generateSequence(e) { t -> t.cause?.takeIf { it !== t } }.take(8)
+
+        fun isAuthError(e: PlaybackException): Boolean =
+            causes(e).any { t -> t.message?.let { "401" in it || "Unauthorized" in it } == true }
+
+        /** e.g. "ERROR_CODE_IO_UNSPECIFIED: DESCRIBE 401" */
+        fun describe(e: PlaybackException): String {
+            val detail = causes(e).mapNotNull { it.message?.takeIf(String::isNotBlank) }.lastOrNull()
+            val name = e.errorCodeName.removePrefix("ERROR_CODE_")
+            return (if (detail != null) "$name: $detail" else name).take(140)
+        }
     }
 }

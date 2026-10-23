@@ -21,7 +21,7 @@ import kotlin.math.min
  * D-pad moves between cameras, OK opens one full screen,
  * pressing right/left past the edge changes page.
  */
-class MainActivity : Activity() {
+class MainActivity : Activity(), CameraTile.Listener {
 
     private lateinit var config: NvrConfig
     private lateinit var grid: LinearLayout
@@ -59,13 +59,19 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        findViewById<Button>(R.id.btn_refresh).setOnClickListener { loadCameras(forceReload = true) }
+        findViewById<Button>(R.id.btn_refresh).setOnClickListener {
+            VideoMode.reset() // try live video again
+            loadCameras(forceReload = true)
+        }
     }
 
     override fun onStart() {
         super.onStart()
         val newConfig = NvrConfig.load(this)
-        if (!::config.isInitialized || newConfig != config) cameras = emptyList() // settings changed
+        if (!::config.isInitialized || newConfig != config) { // settings changed
+            cameras = emptyList()
+            VideoMode.reset()
+        }
         config = newConfig
         if (!config.isComplete) {
             showStatus("Open Settings to enter your NVR's address and login.")
@@ -170,8 +176,6 @@ class MainActivity : Activity() {
         val n = config.gridSize
         val start = page * perPage
         val pageCams = cameras.subList(start, min(start + perPage, cameras.size))
-        // Full screen grid (1×1) uses the main stream; multi-camera grids use the light sub-stream.
-        val stream = if (n == 1) 1 else 2
 
         for (r in 0 until n) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -181,27 +185,71 @@ class MainActivity : Activity() {
                 val cell = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
                 if (i < pageCams.size) {
                     val cam = pageCams[i]
-                    val tile = CameraTile(this, cam, config.rtspUrl(cam.channel, stream))
+                    val tile = CameraTile(this, cam, config, this)
                     val globalIndex = start + i
                     tile.view.setOnClickListener { openFullscreen(globalIndex) }
                     row.addView(tile.view, cell)
                     tiles += tile
-                    tile.start()
                 } else {
                     row.addView(View(this), cell)
                 }
             }
         }
 
-        pageLabel.text = buildString {
-            append("${cameras.size} cameras")
-            if (pageCount > 1) append("   ·   Page ${page + 1} of $pageCount   ·   ◀ ▶ to change page")
-        }
+        startTiles()
+        updateLabel()
 
         val target = focusIndex?.let { it - start }?.takeIf { it in tiles.indices } ?: 0
         tiles.getOrNull(target)?.view?.requestFocus()
         focusIndex = null
         scheduleCycle()
+    }
+
+    /** Live video if it works; otherwise snapshots. Tries one camera first. */
+    private fun startTiles() {
+        when (VideoMode.mode) {
+            VideoMode.Mode.LIVE -> tiles.forEach { it.startLive() }
+            VideoMode.Mode.SNAPSHOT -> tiles.forEach { it.startSnapshots() }
+            VideoMode.Mode.UNKNOWN -> {
+                tiles.firstOrNull()?.startLive()
+                tiles.drop(1).forEach { it.showWaiting() }
+            }
+        }
+    }
+
+    override fun onLiveResult(tile: CameraTile, ok: Boolean, authFailed: Boolean, reason: String?) {
+        if (tile !in tiles) return
+        when (VideoMode.mode) {
+            VideoMode.Mode.UNKNOWN -> if (ok) {
+                VideoMode.mode = VideoMode.Mode.LIVE
+                tiles.filter { it !== tile }.forEach { it.startLive() }
+            } else {
+                VideoMode.mode = VideoMode.Mode.SNAPSHOT
+                VideoMode.reason = reason
+                tiles.forEach { it.startSnapshots() }
+                Toast.makeText(
+                    this,
+                    "Live video didn't start (${reason ?: "unknown error"}). Showing snapshots instead.",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+            // Live works for other cameras: a refused login on this one -> snapshots.
+            // Other errors (camera offline, network blip) keep retrying live.
+            VideoMode.Mode.LIVE -> if (!ok && authFailed) tile.startSnapshots()
+            VideoMode.Mode.SNAPSHOT -> Unit
+        }
+        updateLabel()
+    }
+
+    private fun updateLabel() {
+        pageLabel.text = buildString {
+            append("${cameras.size} cameras")
+            if (pageCount > 1) append("   ·   Page ${page + 1} of $pageCount   ·   ◀ ▶ to change page")
+            if (VideoMode.mode == VideoMode.Mode.SNAPSHOT) {
+                append("   ·   Snapshot mode")
+                VideoMode.reason?.let { append(" – live video: $it") }
+            }
+        }
     }
 
     private fun releaseTiles() {

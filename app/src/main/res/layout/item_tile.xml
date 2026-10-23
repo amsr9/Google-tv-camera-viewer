@@ -18,13 +18,25 @@
         app:shutter_background_color="#0D1117"
         app:use_controller="false" />
 
+    <ImageView
+        android:id="@+id/snapshot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0D1117"
+        android:contentDescription="@null"
+        android:focusable="false"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tile_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:gravity="center"
+        android:padding="8dp"
         android:textColor="#90A4AE"
-        android:textSize="14sp" />
+        android:textSize="13sp" />
 
     <TextView
         android:id="@+id/label"
