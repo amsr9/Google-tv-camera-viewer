@@ -11,6 +11,9 @@ object VideoMode {
     @Volatile var mode: Mode = Mode.UNKNOWN
     @Volatile var reason: String? = null
 
+    /** The NVR refused the video login: don't keep retrying it (account lock). */
+    @Volatile var authFailed = false
+
     /**
      * Cameras whose full-quality (4K main) stream couldn't be played. Full screen
      * shows snapshots for them straight away instead of trying again each time.
@@ -20,6 +23,7 @@ object VideoMode {
     fun reset() {
         mode = Mode.UNKNOWN
         reason = null
+        authFailed = false
         fullScreenFailed.clear()
     }
 }

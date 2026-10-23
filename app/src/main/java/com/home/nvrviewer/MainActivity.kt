@@ -41,11 +41,21 @@ class MainActivity : Activity(), CameraTile.Listener {
 
     // Rearranging: the camera being moved, and the order to go back to on Back.
     private var cameraGrid: CameraGridLayout? = null
+    /** Where each camera on this page sits: tiles[i] is drawn at slots[i]. */
+    private var slots: List<CameraGridLayout.Slot> = emptyList()
+    private val featured: Boolean get() = config.layout == NvrConfig.LAYOUT_FEATURED
+
+    private lateinit var topBar: View
+    private lateinit var btnLayout: Button
+    private val hideBar = Runnable {
+        if (tiles.isEmpty() || topBar.findFocus() != null) return@Runnable
+        topBar.animate().alpha(0f).setDuration(300).withEndAction { topBar.visibility = View.GONE }.start()
+    }
     private var moving: CameraTile? = null
     private var orderBeforeMove: List<Camera> = emptyList()
     private var moveOkArmed = false
 
-    private val perPage: Int get() = config.gridSize * config.gridSize
+    private val perPage: Int get() = config.perPage
     private val pageCount: Int get() = maxOf(1, (cameras.size + perPage - 1) / perPage)
 
     private val cycleRunnable = Runnable {
@@ -63,6 +73,9 @@ class MainActivity : Activity(), CameraTile.Listener {
         grid = findViewById(R.id.grid)
         statusText = findViewById(R.id.status)
         pageLabel = findViewById(R.id.page_label)
+        topBar = findViewById(R.id.top_bar)
+        btnLayout = findViewById(R.id.btn_layout)
+        btnLayout.setOnClickListener { cycleLayout() }
 
         findViewById<Button>(R.id.btn_settings).setOnClickListener { openSettings() }
         findViewById<Button>(R.id.btn_refresh).setOnClickListener {
@@ -178,21 +191,27 @@ class MainActivity : Activity(), CameraTile.Listener {
         moving = null // a redraw ends any rearranging
         releaseTiles()
         grid.removeAllViews()
+        updateLayoutButton()
         if (cameras.isEmpty()) {
             showStatus("No cameras found on the NVR.")
             return
         }
         statusText.visibility = View.GONE
 
-        val n = config.gridSize
         val start = page * perPage
         val pageCams = cameras.subList(start, min(start + perPage, cameras.size))
-
-        // Only as many rows as this page needs, so the cameras fill the screen.
-        val rows = if (pageCount == 1) (pageCams.size + n - 1) / n else n
-        val g = CameraGridLayout(this).apply {
-            columns = n
-            this.rows = rows
+        val g = CameraGridLayout(this)
+        if (featured) {
+            // 3 × 3 cells: one camera covers 2 × 2, five cover one each. All exactly 16:9.
+            g.columns = 3
+            g.rows = 3
+            slots = CameraGridLayout.FEATURED_SLOTS
+        } else {
+            val n = config.gridSize
+            g.columns = n
+            // Only as many rows as this page needs, so the cameras fill the screen.
+            g.rows = if (pageCount == 1) (pageCams.size + n - 1) / n else n
+            slots = CameraGridLayout.equalSlots(pageCams.size, n)
         }
         grid.addView(g, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         cameraGrid = g
@@ -200,12 +219,14 @@ class MainActivity : Activity(), CameraTile.Listener {
             val tile = CameraTile(this, cam, config, this)
             tile.view.setOnClickListener { openFullscreen(cameras.indexOf(tile.camera)) }
             tile.view.setOnLongClickListener { startMove(tile); true }
-            g.addTile(tile.view, i)
+            tile.setBig(featured && i == 0)
+            g.addTile(tile.view, slots[i])
             tiles += tile
         }
 
         startTiles()
         updateLabel()
+        showBar()
 
         val target = focusIndex?.let { it - start }?.takeIf { it in tiles.indices } ?: 0
         tiles.getOrNull(target)?.view?.requestFocus()
@@ -213,14 +234,68 @@ class MainActivity : Activity(), CameraTile.Listener {
         scheduleCycle()
     }
 
+    /** Puts every tile in its slot (after a move) and gives the first slot the big stream. */
+    private fun placeTiles() {
+        val g = cameraGrid ?: return
+        tiles.forEachIndexed { i, tile ->
+            g.setSlot(tile.view, slots[i])
+            tile.setBig(featured && i == 0)
+        }
+    }
+
+    /** Top-bar Layout button: each press switches to the next layout. */
+    private val layouts = listOf(
+        Triple(NvrConfig.LAYOUT_FEATURED, NvrConfig.FIT_FILL, "1 big + 5 small"),
+        Triple(NvrConfig.LAYOUT_GRID, NvrConfig.FIT_BARS, "Equal · whole picture"),
+        Triple(NvrConfig.LAYOUT_GRID, NvrConfig.FIT_STRETCH, "Equal · stretched"),
+        Triple(NvrConfig.LAYOUT_GRID, NvrConfig.FIT_FILL, "Equal · fill"),
+    )
+
+    private fun currentLayoutIndex() =
+        layouts.indexOfFirst { it.first == config.layout && it.second == config.fitMode }
+
+    private fun updateLayoutButton() {
+        val name = layouts.getOrNull(currentLayoutIndex())?.third
+            ?: if (featured) "1 big + 5 small" else "Equal"
+        btnLayout.text = "Layout: $name"
+    }
+
+    private fun cycleLayout() {
+        val next = layouts[(currentLayoutIndex() + 1).mod(layouts.size)]
+        config = config.copy(layout = next.first, fitMode = next.second)
+        config.save(this)
+        page = 0
+        buildPage()
+        btnLayout.requestFocus() // stay on the button so you can press OK again
+        showBar()
+    }
+
+    private fun showBar() {
+        handler.removeCallbacks(hideBar)
+        topBar.animate().cancel()
+        topBar.alpha = 1f
+        topBar.visibility = View.VISIBLE
+        handler.postDelayed(hideBar, BAR_HIDE_MS)
+    }
+
     /** Live video if it works; otherwise snapshots. Tries one camera first. */
     private fun startTiles() {
         when (VideoMode.mode) {
             VideoMode.Mode.LIVE -> tiles.forEach { it.startLive() }
-            VideoMode.Mode.SNAPSHOT -> tiles.forEach { it.startSnapshots() }
+            // The built-in player couldn't play any camera: use VLC for all of them.
+            VideoMode.Mode.SNAPSHOT -> tiles.forEach {
+                if (VideoMode.authFailed) it.startSnapshots() else it.startVlc()
+            }
             VideoMode.Mode.UNKNOWN -> {
-                tiles.firstOrNull()?.startLive()
-                tiles.drop(1).forEach { it.showWaiting() }
+                // Test the built-in player on one small camera first; the big one uses VLC.
+                val probe = tiles.firstOrNull { !it.big }
+                tiles.forEach {
+                    when {
+                        it.big -> it.startLive()
+                        it === probe -> it.startLive()
+                        else -> it.showWaiting()
+                    }
+                }
             }
         }
     }
@@ -230,25 +305,34 @@ class MainActivity : Activity(), CameraTile.Listener {
         when (VideoMode.mode) {
             VideoMode.Mode.UNKNOWN -> if (ok) {
                 VideoMode.mode = VideoMode.Mode.LIVE
-                tiles.filter { it !== tile }.forEach { it.startLive() }
-            } else if (!authFailed && tiles.indexOf(tile) < tiles.size - 1) {
-                // This camera's stream may just be unsupported: show its snapshots
-                // and try live video on the next camera.
-                tile.startSnapshots()
-                tiles[tiles.indexOf(tile) + 1].startLive()
+                tiles.filter { it !== tile && !it.big }.forEach { it.startLive() }
             } else {
-                VideoMode.mode = VideoMode.Mode.SNAPSHOT
-                VideoMode.reason = reason
-                tiles.forEach { it.startSnapshots() }
-                Toast.makeText(
-                    this,
-                    "Live video didn't start (${reason ?: "unknown error"}). Showing snapshots instead.",
-                    Toast.LENGTH_LONG,
-                ).show()
+                // This camera's stream may just be unsupported by the built-in player:
+                // play it with VLC and try the built-in player on the next camera.
+                val next = if (authFailed) null
+                else tiles.drop(tiles.indexOf(tile) + 1).firstOrNull { !it.big }
+                if (next != null) {
+                    tile.startVlc()
+                    next.startLive()
+                } else {
+                    VideoMode.mode = VideoMode.Mode.SNAPSHOT
+                    VideoMode.reason = reason
+                    VideoMode.authFailed = authFailed
+                    // A refused login must not be retried by every camera (account lock).
+                    tiles.forEach {
+                        if (authFailed) it.startSnapshots() else if (!it.big || it === tile) it.startVlc()
+                    }
+                    Toast.makeText(
+                        this,
+                        if (authFailed) "The NVR refused the video login. Showing snapshots – check the password in Settings."
+                        else "Switching to the VLC player (${reason ?: "built-in player couldn't play the cameras"}).",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
             // Live works for other cameras but this one couldn't start (e.g. its
-            // stream format isn't supported): show snapshots for just this camera.
-            VideoMode.Mode.LIVE -> if (!ok) tile.startSnapshots()
+            // stream format isn't supported): use VLC for just this camera.
+            VideoMode.Mode.LIVE -> if (!ok) { if (authFailed) tile.startSnapshots() else tile.startVlc() }
             VideoMode.Mode.SNAPSHOT -> Unit
         }
         updateLabel()
@@ -263,10 +347,9 @@ class MainActivity : Activity(), CameraTile.Listener {
                 append("Moving ${moving?.camera?.name}:   ◀ ▲ ▼ ▶ move   ·   OK place it here   ·   Back cancel")
                 return@buildString
             }
-            append("   ·   OK: full screen   ·   Hold OK: move camera   ·   ▲: Refresh / Settings")
+            append("   ·   OK: full screen   ·   Hold OK: move camera   ·   ▲: Layout / Refresh / Settings")
             if (VideoMode.mode == VideoMode.Mode.SNAPSHOT) {
-                append("   ·   Snapshot mode")
-                VideoMode.reason?.let { append(" – live video: $it") }
+                append(if (VideoMode.authFailed) "   ·   Snapshot mode (video login refused)" else "   ·   VLC mode")
             }
         }
     }
@@ -296,22 +379,40 @@ class MainActivity : Activity(), CameraTile.Listener {
         updateLabel()
     }
 
-    /** Swap the moving camera with its neighbour. The video keeps playing. */
+    /**
+     * Swap the moving camera with the nearest camera in that direction (works for
+     * both layouts). Videos keep playing; only the big spot switches streams.
+     */
     private fun moveBy(dCol: Int, dRow: Int) {
         val tile = moving ?: return
-        val g = cameraGrid ?: return
-        val cell = g.cellOf(tile.view)
-        val col = cell % g.columns + dCol
-        val row = cell / g.columns + dRow
-        if (col !in 0 until g.columns || row < 0) return
-        val target = row * g.columns + col
-        if (target >= tiles.size) return // no camera there
-        val other = tiles[target]
-        g.setCell(other.view, cell)
-        g.setCell(tile.view, target)
-        java.util.Collections.swap(tiles, cell, target)
+        val i = tiles.indexOf(tile)
+        if (i < 0) return
+        val from = slots[i]
+        var best = -1
+        var bestScore = Float.MAX_VALUE
+        for (j in tiles.indices) {
+            if (j == i) continue
+            val to = slots[j]
+            // Only cameras fully past this one's edge in the pressed direction.
+            val beyond = when {
+                dCol > 0 -> to.col >= from.col + from.colSpan
+                dCol < 0 -> to.col + to.colSpan <= from.col
+                dRow > 0 -> to.row >= from.row + from.rowSpan
+                else -> to.row + to.rowSpan <= from.row
+            }
+            if (!beyond) continue
+            val dx = to.centerX - from.centerX
+            val dy = to.centerY - from.centerY
+            val along = if (dCol != 0) dx * dCol else dy * dRow // distance in the pressed direction
+            val across = if (dCol != 0) kotlin.math.abs(dy) else kotlin.math.abs(dx)
+            val score = along + 2 * across // prefer the same row / column
+            if (score < bestScore) { bestScore = score; best = j }
+        }
+        if (best < 0) return
+        java.util.Collections.swap(tiles, i, best)
         val start = page * perPage
-        cameras = cameras.toMutableList().also { java.util.Collections.swap(it, start + cell, start + target) }
+        cameras = cameras.toMutableList().also { java.util.Collections.swap(it, start + i, start + best) }
+        placeTiles()
         tile.view.requestFocus()
     }
 
@@ -325,12 +426,8 @@ class MainActivity : Activity(), CameraTile.Listener {
             Toast.makeText(this, "Camera order saved", Toast.LENGTH_SHORT).show()
         } else {
             cameras = orderBeforeMove
-            val g = cameraGrid
-            val start = page * perPage
-            if (g != null) {
-                tiles.forEach { g.setCell(it.view, cameras.indexOf(it.camera) - start) }
-                tiles.sortBy { g.cellOf(it.view) }
-            }
+            tiles.sortBy { cameras.indexOf(it.camera) }
+            placeTiles()
         }
         tile.view.requestFocus()
         updateLabel()
@@ -363,6 +460,10 @@ class MainActivity : Activity(), CameraTile.Listener {
     }
 
     private fun openFullscreen(index: Int) {
+        if (index < 0) return
+        // Free the grid's decoders first (the big camera uses the TV's 4K decoder,
+        // which full screen needs). The grid restarts when you come back.
+        tiles.forEach { it.release() }
         val intent = Intent(this, PlayerActivity::class.java)
             .putExtra(PlayerActivity.EXTRA_CHANNELS, cameras.map { it.channel }.toIntArray())
             .putExtra(PlayerActivity.EXTRA_NAMES, cameras.map { it.name }.toTypedArray())
@@ -408,10 +509,19 @@ class MainActivity : Activity(), CameraTile.Listener {
                 }
             }
         }
+        if (event.action == KeyEvent.ACTION_DOWN) showBar()
         if (event.action == KeyEvent.ACTION_DOWN && cameras.isNotEmpty()) {
             scheduleCycle() // any key press postpones auto-cycling
             val focused = currentFocus
+            val inBar = focused != null && topBar.findFocus() != null
             when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP ->
+                    if (isTile(focused) && !isTile(focused?.focusSearch(View.FOCUS_UP))) {
+                        btnLayout.requestFocus(); return true
+                    } else if (inBar) return true
+                KeyEvent.KEYCODE_DPAD_DOWN -> if (inBar && tiles.isNotEmpty()) {
+                    tiles.first().view.requestFocus(); return true
+                }
                 KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_SETTINGS -> { openSettings(); return true }
                 KeyEvent.KEYCODE_DPAD_RIGHT ->
                     if (isTile(focused) && !isTile(focused?.focusSearch(View.FOCUS_RIGHT)) && pageCount > 1) {
@@ -432,5 +542,6 @@ class MainActivity : Activity(), CameraTile.Listener {
 
     private companion object {
         const val REQ_FULLSCREEN = 1
+        const val BAR_HIDE_MS = 6_000L
     }
 }

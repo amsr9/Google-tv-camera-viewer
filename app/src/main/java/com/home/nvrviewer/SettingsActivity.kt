@@ -18,6 +18,7 @@ class SettingsActivity : Activity() {
     private lateinit var rtspPort: EditText
     private lateinit var user: EditText
     private lateinit var pass: EditText
+    private lateinit var layoutOpt: OptionSelector
     private lateinit var grid: OptionSelector
     private lateinit var fit: OptionSelector
     private lateinit var cycle: OptionSelector
@@ -46,7 +47,13 @@ class SettingsActivity : Activity() {
         user.setText(c.username)
         pass.setText(c.password)
 
-        grid = OptionSelector(findViewById(R.id.o_grid), "Cameras per row", listOf(1, 2, 3, 4), c.gridSize) {
+        layoutOpt = OptionSelector(
+            findViewById(R.id.o_layout), "Layout",
+            listOf(NvrConfig.LAYOUT_FEATURED, NvrConfig.LAYOUT_GRID), c.layout,
+        ) {
+            if (it == NvrConfig.LAYOUT_FEATURED) "1 big + 5 small (nothing trimmed)" else "Equal tiles"
+        }
+        grid = OptionSelector(findViewById(R.id.o_grid), "Cameras per row (equal tiles)", listOf(1, 2, 3, 4), c.gridSize) {
             if (it == 1) "1  (one camera at a time)" else "$it  (up to ${it * it} on screen)"
         }
         fit = OptionSelector(
@@ -77,7 +84,7 @@ class SettingsActivity : Activity() {
 
         // First run: start at the IP address. Afterwards the login rarely changes, so
         // start at the display options (▲ still reaches the login fields).
-        if (c.isComplete) findViewById<Button>(R.id.o_grid).requestFocus() else host.requestFocus()
+        if (c.isComplete) findViewById<Button>(R.id.o_layout).requestFocus() else host.requestFocus()
     }
 
     private fun readForm(showErrors: Boolean = true): NvrConfig? {
@@ -102,6 +109,7 @@ class SettingsActivity : Activity() {
             gridSize = grid.value,
             cycleSeconds = cycle.value,
             fitMode = fit.value,
+            layout = layoutOpt.value,
         )
     }
 

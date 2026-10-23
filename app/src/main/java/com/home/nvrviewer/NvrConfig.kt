@@ -20,7 +20,12 @@ data class NvrConfig(
     val cycleSeconds: Int,
     /** How a picture fills its tile: 0 = fill (trim edges), 1 = stretch, 2 = fit (black bars). */
     val fitMode: Int = FIT_FILL,
+    /** LAYOUT_GRID = equal tiles ([gridSize] per row), LAYOUT_FEATURED = 1 large + 5 small. */
+    val layout: Int = LAYOUT_GRID,
 ) {
+    /** Cameras on one screen. */
+    val perPage: Int get() = if (layout == LAYOUT_FEATURED) 6 else gridSize * gridSize
+
     val isComplete: Boolean get() = host.isNotBlank() && username.isNotBlank()
 
     /**
@@ -58,6 +63,7 @@ data class NvrConfig(
             .putInt(K_GRID, gridSize)
             .putInt(K_CYCLE, cycleSeconds)
             .putInt(K_FIT, fitMode)
+            .putInt(K_LAYOUT, layout)
             .apply()
     }
 
@@ -73,6 +79,10 @@ data class NvrConfig(
         private const val K_CYCLE = "cycle"
         private const val K_CACHE = "camera_cache"
         private const val K_FIT = "fit"
+        private const val K_LAYOUT = "layout"
+
+        const val LAYOUT_GRID = 0
+        const val LAYOUT_FEATURED = 1
 
         const val FIT_FILL = 0
         const val FIT_STRETCH = 1
@@ -93,6 +103,7 @@ data class NvrConfig(
                 gridSize = p.getInt(K_GRID, 2),
                 cycleSeconds = p.getInt(K_CYCLE, 0),
                 fitMode = p.getInt(K_FIT, FIT_FILL),
+                layout = p.getInt(K_LAYOUT, LAYOUT_GRID),
             )
         }
 

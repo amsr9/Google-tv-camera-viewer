@@ -7,6 +7,7 @@ home network and shows every camera.
 - **Grid view**: 1, 4, 9 or 16 cameras per screen, using the light sub-stream
 - **Full screen**: press OK on a camera to view it live in full 4K quality (VLC player); ◀ ▶ switches camera
 - **Arrange cameras**: hold OK on a camera, move it with the arrows, OK to place it (order is saved)
+- **Layouts** (top-bar *Layout* button or Settings): *1 big + 5 small* (every tile exactly 16:9: nothing trimmed, big camera in 4K), or equal tiles with the whole picture, stretched, or filled
 - **Pages**: press ◀ ▶ past the edge of the grid (or Channel Up/Down) to see more cameras
 - **Auto-cycle** through pages every N seconds (optional)
 - **Reconnects by itself** when a camera or the network drops
@@ -70,7 +71,7 @@ The settings screen opens. Enter the NVR IP, username and password, press
 | Hold OK (1 s) | Pick up the camera to move it: arrows move it, OK places it, Back cancels | — | — |
 | ◀ ▶ on a choice | — | — | Change the option |
 | ◀ ▶ at the grid edge, Channel ± | Previous / next page | Previous / next camera | — |
-| ▲ from the top row | Reach **Refresh** / **Settings** | — | — |
+| ▲ from the top row | Reach **Layout** / **Refresh** / **Settings** (the bar hides after 6 s; any key shows it) | — | — |
 | Menu / Settings key | Open Settings | — | — |
 | Back | From the top bar: back to cameras. Otherwise press twice to close | Back to all cameras | Cancel (asks first if you changed something) |
 

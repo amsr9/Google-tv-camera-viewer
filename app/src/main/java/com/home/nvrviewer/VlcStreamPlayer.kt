@@ -10,25 +10,22 @@ import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
 /**
- * Full-screen player using VLC, which plays Hikvision's 4K H.265 main stream
- * (the built-in player rejects it because its setup line, "fmtp", is missing).
- * Reports the same statuses as [StreamPlayer].
+ * Player using VLC, which plays streams the built-in player rejects: Hikvision's
+ * 4K H.265 main stream (setup line "fmtp" missing) and cameras like Kitchen
+ * (setup detail "sprop" missing). Used for full screen, and for any grid tile
+ * the built-in player can't play. Reports the same statuses as [StreamPlayer].
+ *
+ * inTile: true inside a grid tile – draws on a TextureView so the picture is
+ * trimmed to the tile, and fills the tile the way Settings → Picture says.
  */
 class VlcStreamPlayer(
     context: Context,
     private val layout: VLCVideoLayout,
+    private val inTile: Boolean = false,
+    private val fitMode: Int = NvrConfig.FIT_BARS,
     private val onStatus: (status: StreamPlayer.Status, reason: String?) -> Unit,
 ) {
-    private val libVlc = LibVLC(
-        context.applicationContext,
-        arrayListOf(
-            "--rtsp-tcp",           // reliable over Wi-Fi, same as the grid
-            "--network-caching=600", // small buffer: close to real time
-            "--no-audio",            // camera audio is never played
-            "--drop-late-frames",
-            "--skip-frames",
-        ),
-    )
+    private val libVlc = shared(context)
     private val handler = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null
     private var url: String? = null
@@ -56,7 +53,14 @@ class VlcStreamPlayer(
         onStatus(StreamPlayer.Status.CONNECTING, null)
 
         val p = MediaPlayer(libVlc)
-        p.attachViews(layout, null, false, false)
+        p.attachViews(layout, null, false, inTile)
+        p.setVideoScale(
+            when (fitMode) {
+                NvrConfig.FIT_FILL -> MediaPlayer.ScaleType.SURFACE_FIT_SCREEN // fill, trim edges
+                NvrConfig.FIT_STRETCH -> MediaPlayer.ScaleType.SURFACE_FILL
+                else -> MediaPlayer.ScaleType.SURFACE_BEST_FIT // whole picture
+            },
+        )
         val media = Media(libVlc, Uri.parse(url))
         media.setHWDecoderEnabled(true, false) // use the TV's hardware decoder for 4K
         media.addOption(":network-caching=600")
@@ -120,13 +124,24 @@ class VlcStreamPlayer(
         stopPlayer()
     }
 
-    /** Frees VLC completely. Call once when the screen is destroyed. */
-    fun destroy() {
-        release()
-        libVlc.release()
-    }
+    /** Call when the screen is destroyed. (VLC itself is shared and stays loaded.) */
+    fun destroy() = release()
 
     private companion object {
+        private var sharedVlc: LibVLC? = null
+
+        /** One VLC engine for the whole app: starting it is slow and uses memory. */
+        fun shared(context: Context): LibVLC = sharedVlc ?: LibVLC(
+            context.applicationContext,
+            arrayListOf(
+                "--rtsp-tcp",            // reliable over Wi-Fi, same as the grid
+                "--network-caching=600", // small buffer: close to real time
+                "--no-audio",            // camera audio is never played
+                "--drop-late-frames",
+                "--skip-frames",
+            ),
+        ).also { sharedVlc = it }
+
         const val START_TIMEOUT_MS = 15_000L
         const val INITIAL_RETRY_MS = 3_000L
         const val MAX_RETRY_MS = 30_000L

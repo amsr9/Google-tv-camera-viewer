@@ -13,8 +13,8 @@ android {
         applicationId = "com.home.nvrviewer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 10
+        versionName = "1.9"
 
         // VLC ships native code: only include what TVs use (keeps the app smaller).
         ndk {

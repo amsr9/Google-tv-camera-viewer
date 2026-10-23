@@ -11,6 +11,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import org.videolan.libvlc.util.VLCVideoLayout
 
 /**
  * One cell in the grid: live video (or near-live snapshots), the camera name
@@ -22,6 +23,13 @@ class CameraTile(
     private val config: NvrConfig,
     private val listener: Listener,
 ) {
+    /**
+     * The large camera in the "1 big + 5 small" layout. It plays the sharp 4K
+     * main stream through VLC instead of the small grid stream.
+     */
+    var big = false
+        private set
+
     interface Listener {
         /** Reported once per startLive(): did live video start? */
         fun onLiveResult(tile: CameraTile, ok: Boolean, authFailed: Boolean, reason: String?)
@@ -32,8 +40,12 @@ class CameraTile(
     private val status: TextView = view.findViewById(R.id.tile_status)
     private val playerView: PlayerView = view.findViewById(R.id.player_view)
     private val image: ImageView = view.findViewById(R.id.snapshot)
+    private val vlcView: VLCVideoLayout = view.findViewById(R.id.vlc_view)
+    private var vlc: VlcStreamPlayer? = null
 
     private val handler = Handler(Looper.getMainLooper())
+    private var baseLabel: CharSequence = camera.name
+    private var isMoving = false
     private var stream: StreamPlayer? = null
     private var snapshots: SnapshotFeed? = null
     private var reported = false
@@ -42,7 +54,7 @@ class CameraTile(
 
     init {
         view.tag = TAG
-        label.text = camera.name
+        setLabel(camera.name)
         applyFit(config.fitMode)
     }
 
@@ -82,13 +94,24 @@ class CameraTile(
         show("Waiting…")
     }
 
-    /** Live RTSP video (light sub-stream). */
+    /** Becoming / no longer being the big camera restarts the right stream. */
+    fun setBig(value: Boolean) {
+        if (value == big) return
+        big = value
+        if (stream != null || vlc != null || snapshots != null) {
+            if (big) startVlc(main = true) else startLive()
+        }
+    }
+
+    /** Live RTSP video (light sub-stream), or the 4K stream for the big camera. */
     fun startLive() {
+        if (big) { startVlc(main = true); return }
         stopAll()
         reported = false
         image.visibility = View.GONE
+        vlcView.visibility = View.GONE
         playerView.visibility = View.VISIBLE
-        label.text = camera.name
+        setLabel(camera.name)
         val s = StreamPlayer(context, playerView, preferSoftwareDecoder = true) { st, reason ->
             when (st) {
                 StreamPlayer.Status.CONNECTING -> {
@@ -123,14 +146,40 @@ class CameraTile(
         s.play(config.rtspUrl(camera.channel, 2))
     }
 
+    /**
+     * Live video through VLC, for a camera the built-in player can't play.
+     * If VLC can't play it either, falls back to snapshots.
+     */
+    fun startVlc(main: Boolean = big) {
+        stopAll()
+        playerView.visibility = View.GONE
+        image.visibility = View.GONE
+        vlcView.visibility = View.VISIBLE
+        setLabel(camera.name)
+        val v = VlcStreamPlayer(context, vlcView, inTile = true, fitMode = config.fitMode) { st, reason ->
+            when (st) {
+                StreamPlayer.Status.CONNECTING -> show("Connecting…")
+                StreamPlayer.Status.PLAYING -> status.visibility = View.GONE
+                StreamPlayer.Status.UNREACHABLE -> show("Can't reach camera · retrying\n${reason ?: ""}".trim())
+                // 4K didn't play: try the small stream; if VLC can't play that either, pictures.
+                StreamPlayer.Status.RETRYING, StreamPlayer.Status.AUTH_FAILED ->
+                    handler.post { if (main && st == StreamPlayer.Status.RETRYING) startVlc(main = false) else startSnapshots() }
+            }
+        }
+        vlc = v
+        v.play(config.rtspUrl(camera.channel, if (main) 1 else 2))
+    }
+
     /** Near-live JPEG snapshots over HTTP, about one per second. */
     fun startSnapshots() {
         stopAll()
+        vlcView.visibility = View.GONE
         playerView.visibility = View.GONE
         image.visibility = View.VISIBLE
-        label.text = "${camera.name}  ·  snapshots"
+        setLabel("${camera.name}  ·  snapshots")
         show("Loading…")
-        snapshots = SnapshotFeed(config, camera.channel * 100 + 2, 960, image) { err ->
+        val streamNo = if (big) 1 else 2
+        snapshots = SnapshotFeed(config, camera.channel * 100 + streamNo, if (big) 1920 else 960, image) { err ->
             if (err == null) status.visibility = View.GONE else show(err)
         }.also { it.start() }
     }
@@ -139,23 +188,28 @@ class CameraTile(
         handler.removeCallbacks(probeTimeout)
         stream?.release()
         stream = null
+        vlc?.release()
+        vlc = null
         snapshots?.stop()
         snapshots = null
     }
 
     fun release() = stopAll()
 
-    private var labelBeforeMove: CharSequence? = null
+    /** Sets the camera's label (kept underneath the "Moving" label while moving). */
+    private fun setLabel(text: CharSequence) {
+        baseLabel = text
+        if (!isMoving) label.text = text
+    }
 
     /** Orange frame and a "moving" label while you rearrange this camera. */
     fun setMoving(moving: Boolean) {
+        isMoving = moving
         if (moving) {
-            labelBeforeMove = label.text
             label.text = "◀ ▲ ▼ ▶  Moving ${camera.name}"
             view.foreground = context.getDrawable(R.drawable.tile_moving)
         } else {
-            labelBeforeMove?.let { label.text = it }
-            labelBeforeMove = null
+            label.text = baseLabel
             view.foreground = context.getDrawable(R.drawable.tile_focus)
         }
     }

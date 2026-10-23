@@ -98,6 +98,10 @@
                 android:text="2.  Display" />
 
             <Button
+                android:id="@+id/o_layout"
+                style="@style/SettingsOption" />
+
+            <Button
                 android:id="@+id/o_grid"
                 style="@style/SettingsOption" />
 

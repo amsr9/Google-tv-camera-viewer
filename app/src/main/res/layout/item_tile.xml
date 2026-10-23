@@ -19,6 +19,14 @@
         app:surface_type="texture_view"
         app:use_controller="false" />
 
+    <!-- VLC video, only for cameras the built-in player can't play (e.g. Kitchen) -->
+    <org.videolan.libvlc.util.VLCVideoLayout
+        android:id="@+id/vlc_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="false"
+        android:visibility="gone" />
+
     <ImageView
         android:id="@+id/snapshot"
         android:layout_width="match_parent"
