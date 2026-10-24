@@ -121,6 +121,20 @@ object NvrClient {
     }
 
     fun getBytes(config: NvrConfig, path: String): ByteArray {
+        val conn = openAuthed(config, path)
+        try {
+            return conn.inputStream.use { it.readBytes() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /**
+     * Opens an authenticated GET and returns the connection once the NVR has
+     * answered 200 OK. The caller reads it and must disconnect it.
+     * readTimeoutMs: how long a read may wait (long for the event stream).
+     */
+    fun openAuthed(config: NvrConfig, path: String, readTimeoutMs: Int = READ_TIMEOUT_MS): HttpURLConnection {
         if (System.currentTimeMillis() < authBlockedUntil) {
             throw AuthException(
                 "The NVR refused the login. Paused for 10 minutes to avoid locking the " +
@@ -129,7 +143,7 @@ object NvrClient {
         }
         val url = URL("http://${config.host}:${config.httpPort}$path")
 
-        var conn = open(url)
+        var conn = open(url, readTimeoutMs)
         var code = conn.responseCode
         if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
             val challenges = authHeaders(conn)
@@ -147,7 +161,7 @@ object NvrClient {
                 val raw = "${config.username}:${config.password}".toByteArray()
                 "Basic " + Base64.encodeToString(raw, Base64.NO_WRAP)
             }
-            conn = open(url)
+            conn = open(url, readTimeoutMs)
             conn.setRequestProperty("Authorization", auth)
             code = conn.responseCode
             if (code == HttpURLConnection.HTTP_UNAUTHORIZED) {
@@ -159,18 +173,17 @@ object NvrClient {
                 )
             }
         }
-        try {
-            if (code != HttpURLConnection.HTTP_OK) throw IOException("HTTP $code for $path")
-            return conn.inputStream.use { it.readBytes() }
-        } finally {
+        if (code != HttpURLConnection.HTTP_OK) {
             conn.disconnect()
+            throw IOException("HTTP $code for $path")
         }
+        return conn
     }
 
-    private fun open(url: URL): HttpURLConnection =
+    private fun open(url: URL, readTimeoutMs: Int = READ_TIMEOUT_MS): HttpURLConnection =
         (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
+            readTimeout = readTimeoutMs
             requestMethod = "GET"
             instanceFollowRedirects = false
         }

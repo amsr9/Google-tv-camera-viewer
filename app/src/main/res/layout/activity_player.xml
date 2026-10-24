@@ -2,31 +2,40 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:background="@android:color/black"
+    android:clipChildren="true">
 
-    <!-- VLC video: plays the 4K H.265 main stream -->
-    <org.videolan.libvlc.util.VLCVideoLayout
-        android:id="@+id/player_view"
+    <!-- Everything inside is scaled and moved for digital zoom. -->
+    <FrameLayout
+        android:id="@+id/zoom_frame"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fitsSystemWindows="false"
-        android:focusable="false" />
+        android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/snapshot"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#0D1117"
-        android:contentDescription="@null"
-        android:focusable="false"
-        android:scaleType="fitCenter"
-        android:visibility="gone" />
+        <!-- VLC video: plays the 4K H.265 main stream -->
+        <org.videolan.libvlc.util.VLCVideoLayout
+            android:id="@+id/player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fitsSystemWindows="false"
+            android:focusable="false" />
+
+        <ImageView
+            android:id="@+id/snapshot"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#0D1117"
+            android:contentDescription="@null"
+            android:focusable="false"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:gravity="center"
         android:textColor="#B0BEC5"
         android:textSize="18sp" />
 
@@ -41,4 +50,62 @@
         android:paddingVertical="6dp"
         android:textColor="#FFFFFF"
         android:textSize="18sp" />
+
+    <!-- Shown when a detection popped this camera up -->
+    <TextView
+        android:id="@+id/popup_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="24dp"
+        android:background="#E6FF9800"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="8dp"
+        android:textColor="#000000"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/zoom_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:background="#99000000"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="6dp"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <!-- ▼ menu -->
+    <LinearLayout
+        android:id="@+id/action_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:background="#CC000000"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/act_zoom"
+            style="@style/SettingsButton"
+            android:nextFocusLeft="@id/act_zoom"
+            android:text="🔍  Zoom" />
+
+        <Button
+            android:id="@+id/act_playback"
+            style="@style/SettingsButton"
+            android:text="⏪  Playback" />
+
+        <Button
+            android:id="@+id/act_events"
+            style="@style/SettingsButton"
+            android:nextFocusRight="@id/act_events"
+            android:text="📋  Events" />
+    </LinearLayout>
 </FrameLayout>

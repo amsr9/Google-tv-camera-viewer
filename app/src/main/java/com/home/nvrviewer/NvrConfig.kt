@@ -22,6 +22,15 @@ data class NvrConfig(
     val fitMode: Int = FIT_FILL,
     /** LAYOUT_GRID = equal tiles ([gridSize] per row), LAYOUT_FEATURED = 1 large + 5 small. */
     val layout: Int = LAYOUT_GRID,
+    /** What makes a camera pop up full screen: POPUP_OFF / PEOPLE / PEOPLE_VEHICLES / ANY_MOTION. */
+    val popupMode: Int = POPUP_PEOPLE,
+    /** How long a pop-up stays before returning to the grid. */
+    val popupSeconds: Int = 20,
+    val chime: Boolean = true,
+    /** Pop up even while another app (TV, YouTube…) is on screen. */
+    val popupOverApps: Boolean = false,
+    /** Open the camera wall when the TV starts or wakes up. */
+    val autoStart: Boolean = false,
 ) {
     /** Cameras on one screen. */
     val perPage: Int get() = if (layout == LAYOUT_FEATURED) 6 else gridSize * gridSize
@@ -64,6 +73,11 @@ data class NvrConfig(
             .putInt(K_CYCLE, cycleSeconds)
             .putInt(K_FIT, fitMode)
             .putInt(K_LAYOUT, layout)
+            .putInt(K_POPUP, popupMode)
+            .putInt(K_POPUP_SECS, popupSeconds)
+            .putBoolean(K_CHIME, chime)
+            .putBoolean(K_POPUP_OVER, popupOverApps)
+            .putBoolean(K_AUTOSTART, autoStart)
             .apply()
     }
 
@@ -83,6 +97,17 @@ data class NvrConfig(
 
         const val LAYOUT_GRID = 0
         const val LAYOUT_FEATURED = 1
+
+        private const val K_POPUP = "popup"
+        private const val K_POPUP_SECS = "popup_secs"
+        private const val K_CHIME = "chime"
+        private const val K_POPUP_OVER = "popup_over"
+        private const val K_AUTOSTART = "autostart"
+
+        const val POPUP_OFF = 0
+        const val POPUP_PEOPLE = 1
+        const val POPUP_PEOPLE_VEHICLES = 2
+        const val POPUP_ANY_MOTION = 3
 
         const val FIT_FILL = 0
         const val FIT_STRETCH = 1
@@ -104,6 +129,11 @@ data class NvrConfig(
                 cycleSeconds = p.getInt(K_CYCLE, 0),
                 fitMode = p.getInt(K_FIT, FIT_FILL),
                 layout = p.getInt(K_LAYOUT, LAYOUT_GRID),
+                popupMode = p.getInt(K_POPUP, POPUP_PEOPLE),
+                popupSeconds = p.getInt(K_POPUP_SECS, 20),
+                chime = p.getBoolean(K_CHIME, true),
+                popupOverApps = p.getBoolean(K_POPUP_OVER, false),
+                autoStart = p.getBoolean(K_AUTOSTART, false),
             )
         }
 

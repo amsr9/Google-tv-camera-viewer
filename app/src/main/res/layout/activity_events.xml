@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117"
+    android:orientation="vertical"
+    android:paddingHorizontal="48dp"
+    android:paddingTop="28dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@style/SettingsTitle"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:text="Events" />
+
+        <Button
+            android:id="@+id/o_filter"
+            style="@style/SettingsOption"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="0dp"
+            android:minWidth="360dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/warnings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="#B71C1C"
+        android:padding="10dp"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <TextView
+        style="@style/SettingsLabel"
+        android:text="▲ ▼ choose an event · OK watch the recording from just before it · Back return" />
+
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:divider="#22FFFFFF"
+        android:dividerHeight="1dp"
+        android:listSelector="@drawable/button_tv" />
+
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:textColor="#B0BEC5"
+        android:textSize="16sp"
+        android:visibility="gone" />
+</LinearLayout>

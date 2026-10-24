@@ -11,6 +11,12 @@ home network and shows every camera.
 - **Pages**: press ◀ ▶ past the edge of the grid (or Channel Up/Down) to see more cameras
 - **Auto-cycle** through pages every N seconds (optional)
 - **Reconnects by itself** when a camera or the network drops
+- **Pop-up on detection**: when a person / vehicle / motion is detected, that camera jumps to full screen with a chime, then returns to the grid (Settings → Alerts)
+- **Events**: top-bar *Events* lists recent detections; select one to watch the recording from just before it
+- **Playback**: full screen → ▼ → *Playback*, pick day/hour/minute; ◀ ▶ 30 s, ▼ ▲ 10 min, OK pause, hold OK to pick another time
+- **Digital zoom**: full screen → ▼ → *Zoom*; OK zooms 2×/3×/4×, arrows move, Back exits
+- **Start with the TV**: Settings → *Open the cameras when the TV starts* (needs "Display over other apps")
+- **NVR health**: a red warning if a camera goes offline, the hard drive fails, or the NVR stops answering
 - Stays on your local network; nothing goes through Hikvision's cloud
 
 ---
@@ -74,6 +80,12 @@ The settings screen opens. Enter the NVR IP, username and password, press
 | ▲ from the top row | Reach **Layout** / **Refresh** / **Settings** (the bar hides after 6 s; any key shows it) | — | — |
 | Menu / Settings key | Open Settings | — | — |
 | Back | From the top bar: back to cameras. Otherwise press twice to close | Back to all cameras | Cancel (asks first if you changed something) |
+
+## Pop-ups and Events need one NVR setting
+
+The NVR only reports a detection to the app if that event has **Notify Surveillance Center** ticked.
+In the NVR web page: **Configuration → Event** → for each camera's *Motion Detection* (and/or
+*Intrusion*, *Line Crossing*) → **Linkage Action** → tick **Notify Surveillance Center** → Save.
 
 ## Troubleshooting
 

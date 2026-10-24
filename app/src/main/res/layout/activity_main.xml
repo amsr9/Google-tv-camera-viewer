@@ -23,6 +23,20 @@
         android:textSize="18sp"
         android:visibility="gone" />
 
+    <!-- NVR health problems: always visible while there is one -->
+    <TextView
+        android:id="@+id/warning_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="12dp"
+        android:background="#E6B71C1C"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -51,6 +65,12 @@
             android:nextFocusLeft="@id/btn_layout"
             android:nextFocusUp="@id/btn_layout"
             android:text="Layout" />
+
+        <Button
+            android:id="@+id/btn_events"
+            style="@style/TopBarButton"
+            android:nextFocusUp="@id/btn_events"
+            android:text="Events" />
 
         <Button
             android:id="@+id/btn_refresh"

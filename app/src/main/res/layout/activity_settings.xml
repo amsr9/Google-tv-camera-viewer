@@ -122,7 +122,36 @@
                 style="@style/SettingsOption"
                 android:text="Reset camera order  (tip: hold OK on a camera to move it)" />
 
-            <!-- 3. Save -->
+            <!-- 3. Alerts -->
+            <TextView
+                style="@style/SettingsSection"
+                android:text="3.  Alerts &amp; start-up" />
+
+            <Button
+                android:id="@+id/o_popup"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_popup_secs"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_chime"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_popup_over"
+                style="@style/SettingsOption" />
+
+            <Button
+                android:id="@+id/o_autostart"
+                style="@style/SettingsOption" />
+
+            <TextView
+                style="@style/SettingsLabel"
+                android:text="Pop-ups need “Notify Surveillance Center” ticked in each camera's event settings on the NVR. “Over other apps” and “start-up” need Android's “Display over other apps” permission – Settings will take you there." />
+
+            <!-- 4. Save -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

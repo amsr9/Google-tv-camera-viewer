@@ -128,19 +128,7 @@ class VlcStreamPlayer(
     fun destroy() = release()
 
     private companion object {
-        private var sharedVlc: LibVLC? = null
-
-        /** One VLC engine for the whole app: starting it is slow and uses memory. */
-        fun shared(context: Context): LibVLC = sharedVlc ?: LibVLC(
-            context.applicationContext,
-            arrayListOf(
-                "--rtsp-tcp",            // reliable over Wi-Fi, same as the grid
-                "--network-caching=600", // small buffer: close to real time
-                "--no-audio",            // camera audio is never played
-                "--drop-late-frames",
-                "--skip-frames",
-            ),
-        ).also { sharedVlc = it }
+        fun shared(context: Context): LibVLC = VlcEngine.get(context)
 
         const val START_TIMEOUT_MS = 15_000L
         const val INITIAL_RETRY_MS = 3_000L

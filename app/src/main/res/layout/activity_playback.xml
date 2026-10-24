@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <org.videolan.libvlc.util.VLCVideoLayout
+        android:id="@+id/video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fitsSystemWindows="false"
+        android:focusable="false" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:textColor="#ECEFF1"
+        android:textSize="20sp" />
+
+    <!-- Camera · date and time of what you're watching · state -->
+    <TextView
+        android:id="@+id/info"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="24dp"
+        android:background="#B3000000"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:background="#99000000"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="6dp"
+        android:text="◀ ▶ 30 seconds   ·   ▼ ▲ 10 minutes   ·   OK pause / play   ·   hold OK or Menu: pick a time   ·   Back exit"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp" />
+
+    <!-- Time picker -->
+    <LinearLayout
+        android:id="@+id/picker"
+        android:layout_width="560dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="#F20D1117"
+        android:orientation="vertical"
+        android:padding="28dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/picker_title"
+            style="@style/SettingsTitle"
+            android:text="Playback" />
+
+        <TextView
+            style="@style/SettingsLabel"
+            android:text="Choose when to start watching   (◀ ▶ change · ▲ ▼ move)" />
+
+        <Button
+            android:id="@+id/p_day"
+            style="@style/SettingsOption" />
+
+        <Button
+            android:id="@+id/p_hour"
+            style="@style/SettingsOption" />
+
+        <Button
+            android:id="@+id/p_minute"
+            style="@style/SettingsOption" />
+
+        <Button
+            android:id="@+id/p_play"
+            style="@style/SettingsButton"
+            android:layout_marginTop="20dp"
+            android:text="▶  Play" />
+    </LinearLayout>
+</FrameLayout>

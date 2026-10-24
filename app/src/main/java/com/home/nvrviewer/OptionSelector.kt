@@ -20,6 +20,9 @@ class OptionSelector(
 
     val value: Int get() = values[index]
 
+    /** Called after the value changes (◀ ▶ or OK). */
+    var onChange: ((Int) -> Unit)? = null
+
     init {
         render()
         button.setOnClickListener { step(+1) }
@@ -35,6 +38,7 @@ class OptionSelector(
     private fun step(delta: Int) {
         index = (index + delta + values.size) % values.size
         render()
+        onChange?.invoke(value)
     }
 
     private fun render() {

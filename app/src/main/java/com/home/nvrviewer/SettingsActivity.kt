@@ -6,6 +6,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 
 /**
  * NVR address, login and display options, laid out for a TV remote:
@@ -23,6 +26,11 @@ class SettingsActivity : Activity() {
     private lateinit var fit: OptionSelector
     private lateinit var cycle: OptionSelector
     private lateinit var manual: OptionSelector
+    private lateinit var popup: OptionSelector
+    private lateinit var popupSecs: OptionSelector
+    private lateinit var chime: OptionSelector
+    private lateinit var popupOver: OptionSelector
+    private lateinit var autoStart: OptionSelector
     private lateinit var result: TextView
 
     private lateinit var original: NvrConfig
@@ -74,6 +82,33 @@ class SettingsActivity : Activity() {
             findViewById(R.id.o_manual), "Cameras", (0..32).toList(), c.manualChannels,
         ) { if (it == 0) "Find automatically" else "$it (set by hand)" }
 
+        popup = OptionSelector(
+            findViewById(R.id.o_popup), "Pop up a camera on",
+            listOf(NvrConfig.POPUP_PEOPLE, NvrConfig.POPUP_PEOPLE_VEHICLES, NvrConfig.POPUP_ANY_MOTION, NvrConfig.POPUP_OFF),
+            c.popupMode,
+        ) {
+            when (it) {
+                NvrConfig.POPUP_PEOPLE -> "People"
+                NvrConfig.POPUP_PEOPLE_VEHICLES -> "People and vehicles"
+                NvrConfig.POPUP_ANY_MOTION -> "Any motion"
+                else -> "Off"
+            }
+        }
+        popupSecs = OptionSelector(findViewById(R.id.o_popup_secs), "Pop-up stays for", listOf(10, 20, 30, 60), c.popupSeconds) {
+            "$it seconds"
+        }
+        chime = OptionSelector(findViewById(R.id.o_chime), "Chime with pop-ups", listOf(1, 0), if (c.chime) 1 else 0) {
+            if (it == 1) "On" else "Off"
+        }
+        popupOver = OptionSelector(
+            findViewById(R.id.o_popup_over), "Pop up over other apps (TV, YouTube…)",
+            listOf(0, 1), if (c.popupOverApps) 1 else 0,
+        ) { if (it == 1) "On" else "Off" }
+        autoStart = OptionSelector(
+            findViewById(R.id.o_autostart), "Open the cameras when the TV starts",
+            listOf(0, 1), if (c.autoStart) 1 else 0,
+        ) { if (it == 1) "On" else "Off" }
+
         findViewById<Button>(R.id.btn_test).setOnClickListener { test() }
         findViewById<Button>(R.id.btn_save).setOnClickListener { save() }
         findViewById<Button>(R.id.btn_cancel).setOnClickListener { finish() }
@@ -110,6 +145,11 @@ class SettingsActivity : Activity() {
             cycleSeconds = cycle.value,
             fitMode = fit.value,
             layout = layoutOpt.value,
+            popupMode = popup.value,
+            popupSeconds = popupSecs.value,
+            chime = chime.value == 1,
+            popupOverApps = popupOver.value == 1,
+            autoStart = autoStart.value == 1,
         )
     }
 
@@ -140,7 +180,35 @@ class SettingsActivity : Activity() {
         }
         cfg.save(this)
         NvrClient.clearAuthBlock()
+        MonitorService.start(this) // apply the new settings to the background monitor
+        if ((cfg.popupOverApps || cfg.autoStart) && !Settings.canDrawOverlays(this)) {
+            askOverlayPermission()
+        }
         finish()
+    }
+
+    /**
+     * Opening the cameras by itself (start-up, pop-ups over other apps) needs
+     * Android's "Display over other apps" permission, which only you can grant.
+     */
+    private fun askOverlayPermission() {
+        Toast.makeText(
+            this,
+            "Allow “Home Cameras” to display over other apps, then press Back.",
+            Toast.LENGTH_LONG,
+        ).show()
+        val opened = runCatching {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+            )
+        }.isSuccess
+        if (!opened) {
+            Toast.makeText(
+                this,
+                "Open TV Settings → Apps → Special app access → Display over other apps → Home Cameras → Allow.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     /** Back with unsaved changes asks once before throwing them away. */

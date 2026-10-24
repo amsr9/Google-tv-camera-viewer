@@ -46,6 +46,9 @@ class MainActivity : Activity(), CameraTile.Listener {
     private val featured: Boolean get() = config.layout == NvrConfig.LAYOUT_FEATURED
 
     private lateinit var topBar: View
+    private lateinit var warningBanner: TextView
+    private val app get() = application as App
+    private val onAppChange: () -> Unit = { showWarnings() }
     private lateinit var btnLayout: Button
     private val hideBar = Runnable {
         if (tiles.isEmpty() || topBar.findFocus() != null) return@Runnable
@@ -76,6 +79,12 @@ class MainActivity : Activity(), CameraTile.Listener {
         topBar = findViewById(R.id.top_bar)
         btnLayout = findViewById(R.id.btn_layout)
         btnLayout.setOnClickListener { cycleLayout() }
+        warningBanner = findViewById(R.id.warning_banner)
+        findViewById<Button>(R.id.btn_events).setOnClickListener {
+            startActivity(Intent(this, EventsActivity::class.java))
+        }
+        // Background monitor: detections, health checks, opening on TV start-up.
+        MonitorService.start(this)
 
         findViewById<Button>(R.id.btn_settings).setOnClickListener { openSettings() }
         findViewById<Button>(R.id.btn_refresh).setOnClickListener {
@@ -86,6 +95,8 @@ class MainActivity : Activity(), CameraTile.Listener {
 
     override fun onStart() {
         super.onStart()
+        app.addListener(onAppChange)
+        showWarnings()
         val newConfig = NvrConfig.load(this)
         if (!::config.isInitialized || newConfig != config) { // settings changed
             cameras = emptyList()
@@ -106,6 +117,7 @@ class MainActivity : Activity(), CameraTile.Listener {
 
     override fun onStop() {
         super.onStop()
+        app.removeListener(onAppChange)
         if (moving != null) finishMove(save = false)
         loadToken++ // ignore any discovery still in flight
         handler.removeCallbacksAndMessages(null)
@@ -347,7 +359,7 @@ class MainActivity : Activity(), CameraTile.Listener {
                 append("Moving ${moving?.camera?.name}:   ◀ ▲ ▼ ▶ move   ·   OK place it here   ·   Back cancel")
                 return@buildString
             }
-            append("   ·   OK: full screen   ·   Hold OK: move camera   ·   ▲: Layout / Refresh / Settings")
+            append("   ·   OK: full screen   ·   Hold OK: move camera   ·   ▲: Layout / Events / Settings")
             if (VideoMode.mode == VideoMode.Mode.SNAPSHOT) {
                 append(if (VideoMode.authFailed) "   ·   Snapshot mode (video login refused)" else "   ·   VLC mode")
             }
@@ -432,6 +444,22 @@ class MainActivity : Activity(), CameraTile.Listener {
         tile.view.requestFocus()
         updateLabel()
         scheduleCycle()
+    }
+
+    /** NVR problems (camera offline, hard drive, unreachable) stay on screen until fixed. */
+    private fun showWarnings() {
+        val w = app.warnings
+        warningBanner.visibility = if (w.isEmpty()) View.GONE else View.VISIBLE
+        warningBanner.text = w.joinToString("\n") { "⚠  $it" }
+    }
+
+    /** A detection (called by [App]): show that camera full screen for a while. */
+    fun showPopup(channel: Int, banner: String) {
+        if (moving != null) return // don't interrupt rearranging
+        if (cameras.none { it.channel == channel }) return
+        tiles.forEach { it.release() } // free the decoders, as for a normal full screen
+        @Suppress("DEPRECATION")
+        startActivityForResult(PlayerActivity.popupIntent(this, cameras, channel, banner), REQ_FULLSCREEN)
     }
 
     private fun openSettings() {
